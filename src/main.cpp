@@ -41,6 +41,10 @@ struct svc_insn
 
 int main()
 {
-	spdlog::info( "armcall" );
+    std::array<std::uint8_t, 4> bytes = { 0xc1, 0x00, 0x00, 0xD4 }; // little-endian
+    
+    const auto insn = svc_insn::parse(bytes);
+
+	spdlog::info( "armcall 0x{:X}", insn ? insn->imm() : 0);
 	return 0;
 }
