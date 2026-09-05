@@ -1,5 +1,5 @@
 #include "../src/syscall.hpp"
-#include "../src/svc.hpp"
+#include "../src/insn.hpp"
 #include <algorithm>
 #include <format>
 #include <array>
@@ -12,10 +12,10 @@ int main()
 
     std::array<std::uint8_t, 4> bytes = { 0xc1, 0x00, 0x00, 0xD4 }; // little-endian
     
-    const auto insn = ac::svc_insn::parse(bytes);
-    const auto new_insn = ac::svc_insn::encode(0x6);
+    const auto insn = ac::insn::svc::parse(bytes);
+    const auto new_insn = ac::insn::svc::encode(0x6);
 
-    const std::span new_bytes(reinterpret_cast<const std::uint8_t*>(&new_insn), sizeof(new_insn));
+    const auto new_bytes = new_insn.to_bytes();
 
     if (std::ranges::equal(bytes, new_bytes))
     {

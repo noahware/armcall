@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <vector>
+#include <array>
 #include <span>
 #include <string_view>
 #include <unordered_map>
@@ -13,6 +14,9 @@ namespace ac
 {
 	template <class T>
 	using span_t = std::span<T>;
+
+	template <class T, size_t S>
+	using array_t = std::array<T, S>;
 
 	template <class T>
 	using optional_t = std::optional<T>;

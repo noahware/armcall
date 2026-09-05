@@ -1,13 +1,13 @@
 #include "syscall.hpp"
 #include "deps.hpp"
-#include "svc.hpp"
+#include "insn.hpp"
 
 #include <pe.hpp>
 #include <Windows.h>
 
 namespace
 {
-	ac::unordered_map_t<ac::string_view_t, ac::svc_insn> syscalls;
+	ac::unordered_map_t<ac::string_view_t, ac::insn::svc> syscalls;
 }
 
 void ac::init()
@@ -22,7 +22,7 @@ void ac::init()
 		// todo: keep only if in exec section
 
 		const auto loc = exp.loc.addr<const std::uint8_t*>();
-		const auto svc = svc_insn::parse(loc);
+		const auto svc = insn::svc::parse(loc);
 
 		if (!svc)
 			continue;

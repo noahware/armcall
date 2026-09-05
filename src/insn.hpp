@@ -1,19 +1,33 @@
 #pragma once
 #include "deps.hpp"
 
-namespace ac
+namespace ac::insn
 {
-    struct svc_insn
+    struct base
     {
         constexpr static std::size_t len = 4;
+
+        base() noexcept = default;
+
+        [[nodiscard]] array_t<std::uint8_t, len> to_bytes() const noexcept
+        {
+            std::array<std::uint8_t, len> bytes{};
+            ac::memcpy(bytes.data(), this, len);
+
+            return bytes;
+        }
+    };
+
+    struct svc : base
+    {
         constexpr static std::uint32_t exp_ll = 0x1;
         constexpr static std::uint32_t exp_opc = 0x0;
         constexpr static std::uint32_t exp_opc2 = 0x0;
         constexpr static std::uint32_t exp_fixed = 0xD4;
 
-        svc_insn() noexcept = default;
+        svc() noexcept = default;
 
-        explicit svc_insn(const std::uint32_t imm) noexcept
+        explicit svc(const std::uint32_t imm) noexcept
             :   ll(exp_ll),
 	            opc2(exp_opc2),
 	            imm16(imm),
@@ -39,19 +53,19 @@ namespace ac
             return imm16;
         }
 
-        static svc_insn encode(const std::uint32_t imm) noexcept
+        [[nodiscard]] static svc encode(const std::uint32_t imm) noexcept
         {
-            return svc_insn{ imm };
+            return svc{ imm };
         }
 
-        static optional_t<svc_insn> parse(const std::uint8_t* const bytes) noexcept
+        [[nodiscard]] static optional_t<svc> parse(const std::uint8_t* const bytes) noexcept
         {
             return parse(span_t(bytes, len));
         }
 
-        static optional_t<svc_insn> parse(const span_t<const uint8_t> bytes) noexcept
+        [[nodiscard]] static optional_t<svc> parse(const span_t<const uint8_t> bytes) noexcept
         {
-            svc_insn insn;
+            svc insn;
             ac::memcpy(&insn, bytes.data(), sizeof(insn));
 
             if (!insn.valid())
@@ -60,6 +74,21 @@ namespace ac
             }
 
             return insn;
+        }
+    };
+
+    struct ret : base
+    {
+        ret() noexcept = default;
+
+        explicit ret(const std::uint32_t value) noexcept
+    		:   val(value) { }
+
+        std::uint32_t val;
+
+        [[nodiscard]] static ret encode() noexcept
+        {
+            return ret{ 0xC0035FD6 };
         }
     };
 }
