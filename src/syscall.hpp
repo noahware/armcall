@@ -14,7 +14,14 @@ namespace ac
         if (!stub)
         {
             // todo: raise exception
-            return {};
+            if constexpr (!is_void_v<T>)
+            {
+                return T{};
+            }
+            else
+            {
+                return;
+            }
         }
 
         using syscall_fn = T(*)(Args...);

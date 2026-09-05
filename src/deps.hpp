@@ -6,6 +6,7 @@
 #include <array>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 
 // the only place in the library that names std:: containers and range adaptors
@@ -30,4 +31,5 @@ namespace ac
 	using unordered_map_t = std::unordered_map<K, V>;
 
 	using std::memcpy;
+	using std::is_void_v;
 }
