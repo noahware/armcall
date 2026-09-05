@@ -22,7 +22,7 @@ int main()
         LOG("bytes are eq");
     }
 
-	LOG( "armcall 0x{:X}", insn ? insn->imm() : 0);
+	LOG("armcall 0x{:X}", insn ? insn->imm() : 0);
 
 	return 0;
 }

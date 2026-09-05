@@ -7,7 +7,7 @@
 
 namespace
 {
-	ac::unordered_map_t<ac::string_view_t, ac::svc_insn> syscalls = {};
+	ac::unordered_map_t<ac::string_view_t, ac::svc_insn> syscalls;
 }
 
 void ac::init()
