@@ -1,0 +1,9 @@
+[project]
+name = "armcall"
+languages = ["CXX"]
+
+[target.armcall-tests]
+type = "executable"
+sources = ["tests/main.cpp", "src/*.hpp", "src/*.inl"]
+include-directories = ["src", "vendor/pe/src"]
+compile-features = ["cxx_std_20"]

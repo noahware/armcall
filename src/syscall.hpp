@@ -23,7 +23,7 @@ namespace ac
     template <class T = NTSTATUS, class... Args>
     T syscall(const string_view_t name, Args... args)
     {
-        const void* stub = stub_of(name);
+        void* const stub = stub_of(name);
 
         if (!stub)
         {

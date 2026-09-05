@@ -1,8 +1,0 @@
-<Solution>
-  <Configurations>
-    <Platform Name="ARM64" />
-    <Platform Name="x64" />
-    <Platform Name="x86" />
-  </Configurations>
-  <Project Path="armcall.vcxproj" Id="b3005b48-6e47-4078-b08b-6498c3dc8280" />
-</Solution>
