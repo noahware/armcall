@@ -12,7 +12,7 @@ int main()
     ac::init();
 
     LARGE_INTEGER time = { };
-    const auto status = ac::syscall<NTSTATUS>("ZwQuerySystemTime", &time);
+    const auto status = AC_SYSCALL(ZwQuerySystemTime, &time);
 
 	LOG("armcall status 0x{:X}, time: 0x{:X}", status, time.QuadPart);
 
