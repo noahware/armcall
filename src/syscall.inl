@@ -1,19 +1,19 @@
-#include "syscall.hpp"
+#pragma once
 #include "insn.hpp"
 
 #include <pe.hpp>
 #include <Windows.h>
 
-namespace
+namespace ac::detail
 {
 	class cached_syscall
 	{
 	public:
-		constexpr static std::size_t stub_size = ac::insn::base::len * 2;
+		constexpr static std::size_t stub_size = insn::base::len * 2;
 
 		cached_syscall() noexcept = default;
 
-		cached_syscall(const ac::insn::svc svc) noexcept
+		cached_syscall(const insn::svc svc) noexcept
 			:	svc_(svc) { }
 
 		~cached_syscall()
@@ -47,7 +47,7 @@ namespace
 				return;
 			}
 
-			const auto ret = ac::insn::ret::encode();
+			const auto ret = insn::ret::encode();
 			const auto stub_ret = static_cast<std::uint8_t*>(stub_) + sizeof(svc_);
 
 			ac::memcpy(stub_, &svc_, sizeof(svc_));
@@ -67,14 +67,16 @@ namespace
 			VirtualFree(stub_, 0, MEM_RELEASE);
 		}
 
-		ac::insn::svc svc_ = { };
+		insn::svc svc_ = { };
 		void* stub_ = nullptr;
 	};
 
-	ac::unordered_map_t<ac::string_view_t, cached_syscall> syscalls;
+	// inline, not an anonymous namespace: every TU including syscall.hpp must
+	// share one map, or init() would populate a different one than stub_of() reads
+	inline unordered_map_t<string_view_t, cached_syscall> syscalls;
 }
 
-void ac::init()
+inline void ac::init()
 {
 	const auto ntdll = reinterpret_cast<const pe::image*>(GetModuleHandleA("ntdll.dll"));
 
@@ -91,15 +93,15 @@ void ac::init()
 		if (!svc)
 			continue;
 
-		syscalls[exp.name] = svc.value();
+		detail::syscalls[exp.name] = svc.value();
 	}
 }
 
-void* ac::stub_of(const string_view_t syscall)
+inline void* ac::stub_of(const string_view_t syscall)
 {
-	const auto it = syscalls.find(syscall);
+	const auto it = detail::syscalls.find(syscall);
 
-	if (it == syscalls.end())
+	if (it == detail::syscalls.end())
 	{
 		return nullptr;
 	}

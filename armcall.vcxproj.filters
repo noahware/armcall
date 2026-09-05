@@ -18,11 +18,11 @@
     <ClCompile Include="tests\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\syscall.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\syscall.inl">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\syscall.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -44,3 +44,5 @@ namespace ac
         return fn(args...);
     }
 }
+
+#include "syscall.inl"
