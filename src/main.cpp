@@ -43,6 +43,11 @@ struct svc_insn
         return svc_insn{ imm };
     }
 
+    static std::optional<svc_insn> parse(const std::uint8_t* const bytes) noexcept
+	{
+        return parse(std::span<const std::uint8_t, len>(bytes, len));
+	}
+
     static std::optional<svc_insn> parse(const std::span<const uint8_t, len> bytes) noexcept
 	{
         svc_insn insn;
@@ -59,6 +64,25 @@ struct svc_insn
 
 int main()
 {
+    const auto ntdll = reinterpret_cast<const pe::image*>(GetModuleHandleA("ntdll.dll"));
+    std::unordered_map<std::string_view, svc_insn> syscalls;
+
+    for (const auto exp : ntdll->exports())
+    {
+        if (exp.is_ordinal)
+            continue;
+
+        // todo: keep only if in exec section
+
+        const auto loc = exp.loc.addr<const std::uint8_t*>();
+        const auto svc = svc_insn::parse(loc);
+
+        if (!svc)
+            continue;
+
+        syscalls[exp.name] = svc.value();
+    }
+
     std::array<std::uint8_t, 4> bytes = { 0xc1, 0x00, 0x00, 0xD4 }; // little-endian
     
     const auto insn = svc_insn::parse(bytes);
