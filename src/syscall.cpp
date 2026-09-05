@@ -7,7 +7,72 @@
 
 namespace
 {
-	ac::unordered_map_t<ac::string_view_t, ac::insn::svc> syscalls;
+	class cached_syscall
+	{
+	public:
+		constexpr static std::size_t stub_size = ac::insn::base::len * 2;
+
+		cached_syscall() noexcept = default;
+
+		cached_syscall(const ac::insn::svc svc) noexcept
+			:	svc_(svc) { }
+
+		~cached_syscall()
+		{
+			if (stub_)
+			{
+				free_stub();
+				stub_ = nullptr;
+			}
+		}
+
+		[[nodiscard]] void* create_or_get_stub() noexcept
+		{
+			if (stub_)
+			{
+				return stub_;
+			}
+
+			alloc_stub();
+			
+			return stub_;
+		}
+
+	protected:
+		void alloc_stub()
+		{
+			stub_ = VirtualAlloc(nullptr, stub_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+
+			if (!stub_)
+			{
+				return;
+			}
+
+			const auto ret = ac::insn::ret::encode();
+			const auto stub_ret = static_cast<std::uint8_t*>(stub_) + sizeof(svc_);
+
+			ac::memcpy(stub_, &svc_, sizeof(svc_));
+			ac::memcpy(stub_ret, &ret, sizeof(ret));
+
+			DWORD old_prot = 0;
+			VirtualProtect(stub_, stub_size, PAGE_EXECUTE_READ, &old_prot);
+		}
+
+		void free_stub()
+		{
+			if (!stub_)
+			{
+				return;
+			}
+
+			VirtualFree(stub_, 0, MEM_RELEASE);
+		}
+
+		ac::insn::svc svc_ = { };
+		void* stub_ = nullptr;
+	};
+
+	ac::unordered_map_t<ac::string_view_t, cached_syscall> syscalls;
 }
 
 void ac::init()
@@ -29,4 +94,16 @@ void ac::init()
 
 		syscalls[exp.name] = svc.value();
 	}
+}
+
+void* ac::stub_of(const string_view_t syscall)
+{
+	const auto it = syscalls.find(syscall);
+
+	if (it == syscalls.end())
+	{
+		return nullptr;
+	}
+
+	return it->second.create_or_get_stub();
 }
