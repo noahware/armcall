@@ -400,5 +400,3 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
-# vcpkg
-vcpkg_installed/

@@ -32,8 +32,6 @@
     <ProjectGuid>{b3005b48-6e47-4078-b08b-6498c3dc8280}</ProjectGuid>
     <RootNamespace>armcall</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <VcpkgEnableManifest>true</VcpkgEnableManifest>
-    <VcpkgManifestInstall>true</VcpkgManifestInstall>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -76,13 +74,7 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <PropertyGroup Label="Vcpkg">
-    <VcpkgMsbuildDir Condition="'$(VcpkgMsbuildDir)' == '' And Exists('$(VCPKG_ROOT)\scripts\buildsystems\msbuild\vcpkg.props')">$(VCPKG_ROOT)\scripts\buildsystems\msbuild\</VcpkgMsbuildDir>
-    <VcpkgMsbuildDir Condition="'$(VcpkgMsbuildDir)' == '' And Exists('$(USERPROFILE)\vcpkg\scripts\buildsystems\msbuild\vcpkg.props')">$(USERPROFILE)\vcpkg\scripts\buildsystems\msbuild\</VcpkgMsbuildDir>
-    <VcpkgMsbuildDir Condition="'$(VcpkgMsbuildDir)' == '' And Exists('$(VCInstallDir)vcpkg\scripts\buildsystems\msbuild\vcpkg.props')">$(VCInstallDir)vcpkg\scripts\buildsystems\msbuild\</VcpkgMsbuildDir>
-  </PropertyGroup>
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VcpkgMsbuildDir)vcpkg.props" Condition="'$(VcpkgMsbuildDir)' != ''" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -214,10 +206,15 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\syscall.cpp" />
+    <ClCompile Include="tests\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\deps.hpp" />
+    <ClInclude Include="src\svc.hpp" />
+    <ClInclude Include="src\syscall.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VcpkgMsbuildDir)vcpkg.targets" Condition="'$(VcpkgMsbuildDir)' != ''" />
   </ImportGroup>
 </Project>

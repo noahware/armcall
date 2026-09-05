@@ -1,9 +1,7 @@
 name: arm64
 
+# Manual only -- start it from the Actions tab, or `gh workflow run arm64.yml`.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -12,26 +10,14 @@ jobs:
     # Pin to `windows-11-vs2026-arm` instead if this label is still on the VS 2022 image.
     runs-on: windows-11-arm
 
-    env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-cache
-
     steps:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - name: Restore vcpkg binary cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}\vcpkg-cache
-          key: vcpkg-arm64-${{ hashFiles('vcpkg.json') }}-${{ github.run_id }}
-          restore-keys: vcpkg-arm64-${{ hashFiles('vcpkg.json') }}-
-
       - name: Set up build environment
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
-
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products * `
                   -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 `
@@ -49,14 +35,9 @@ jobs:
           Write-Host "msvc     = $tools"
           Write-Host "toolset  = $toolset"
           Write-Host "msbuild  = $msbuild"
-          Write-Host "vcpkg    = $env:VCPKG_INSTALLATION_ROOT"
 
-          # armcall.vcxproj checks VCPKG_ROOT first. The runner's C:\vcpkg is a full
-          # clone with a ports tree, which is what a baseline-less manifest needs --
-          # the vcpkg bundled with Visual Studio cannot resolve one.
-          "MSBUILD=$msbuild"                        | Out-File $env:GITHUB_ENV -Append
-          "TOOLSET=$toolset"                        | Out-File $env:GITHUB_ENV -Append
-          "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File $env:GITHUB_ENV -Append
+          "MSBUILD=$msbuild" | Out-File $env:GITHUB_ENV -Append
+          "TOOLSET=$toolset" | Out-File $env:GITHUB_ENV -Append
 
       - name: Build
         shell: pwsh

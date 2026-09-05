@@ -1,6 +1,0 @@
-{
-  "name": "armcall",
-  "dependencies": [
-    "spdlog"
-  ]
-}
