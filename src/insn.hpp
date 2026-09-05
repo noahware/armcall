@@ -88,7 +88,7 @@ namespace ac::insn
 
         [[nodiscard]] static ret encode() noexcept
         {
-            return ret{ 0xC0035FD6 };
+            return ret{ 0xD65F03C0 };
         }
     };
 }
