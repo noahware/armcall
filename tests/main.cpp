@@ -9,7 +9,7 @@
 
 int main()
 {
-    ac::init();
+    AC_INIT();
 
     LARGE_INTEGER time = { };
     const auto status = AC_SYSCALL(ZwQuerySystemTime, &time);

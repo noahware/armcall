@@ -2,6 +2,8 @@
 #include "deps.hpp"
 #include <Windows.h>
 
+#define AC_INIT() ac::init()
+
 #if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
 #define AC_SYSCALL(name, ...)        ::ac::syscall(#name, __VA_ARGS__)
 #define AC_SYSCALL_AS(T, name, ...)  ::ac::syscall<T>(#name, __VA_ARGS__)
