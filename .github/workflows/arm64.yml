@@ -1,0 +1,82 @@
+name: arm64
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Native Windows-on-Arm runner, so the ARM64 binary runs without emulation.
+    # Pin to `windows-11-vs2026-arm` instead if this label is still on the VS 2022 image.
+    runs-on: windows-11-arm
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-cache
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\vcpkg-cache
+          key: vcpkg-arm64-${{ hashFiles('vcpkg.json') }}-${{ github.run_id }}
+          restore-keys: vcpkg-arm64-${{ hashFiles('vcpkg.json') }}-
+
+      - name: Set up build environment
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * `
+                  -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 `
+                  -property installationPath
+          if (-not $vs) { throw "no Visual Studio install with ARM64 C++ tools" }
+
+          # The project pins v145 (VS 2026); fall back to v143 on the VS 2022 image.
+          $tools = Get-Content "$vs\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt"
+          $toolset = if ([version]$tools -ge [version]'14.50') { 'v145' } else { 'v143' }
+
+          $msbuild = "$vs\MSBuild\Current\Bin\arm64\MSBuild.exe"
+          if (-not (Test-Path $msbuild)) { $msbuild = "$vs\MSBuild\Current\Bin\MSBuild.exe" }
+
+          Write-Host "vs       = $vs"
+          Write-Host "msvc     = $tools"
+          Write-Host "toolset  = $toolset"
+          Write-Host "msbuild  = $msbuild"
+          Write-Host "vcpkg    = $env:VCPKG_INSTALLATION_ROOT"
+
+          # armcall.vcxproj checks VCPKG_ROOT first. The runner's C:\vcpkg is a full
+          # clone with a ports tree, which is what a baseline-less manifest needs --
+          # the vcpkg bundled with Visual Studio cannot resolve one.
+          "MSBUILD=$msbuild"                        | Out-File $env:GITHUB_ENV -Append
+          "TOOLSET=$toolset"                        | Out-File $env:GITHUB_ENV -Append
+          "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File $env:GITHUB_ENV -Append
+
+      - name: Build
+        shell: pwsh
+        run: |
+          & $env:MSBUILD armcall.vcxproj `
+            -p:Configuration=Release -p:Platform=ARM64 `
+            -p:PlatformToolset=$env:TOOLSET `
+            -m -v:m -nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run
+        shell: pwsh
+        run: |
+          Write-Host "host arch: $env:PROCESSOR_ARCHITECTURE"
+          .\ARM64\Release\armcall.exe
+          if ($LASTEXITCODE -ne 0) { throw "armcall.exe exited with $LASTEXITCODE" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: armcall-arm64
+          path: |
+            ARM64\Release\armcall.exe
+            ARM64\Release\armcall.pdb

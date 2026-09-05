@@ -1,5 +1,12 @@
-#include <spdlog/spdlog.h>
+#include <Windows.h>
+
+#include <algorithm>
+#include <array>
+#include <cstring>
 #include <span>
+#include <unordered_map>
+
+#include <spdlog/spdlog.h>
 #include <pe.hpp>
 
 struct svc_insn
