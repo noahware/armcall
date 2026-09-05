@@ -1,5 +1,6 @@
 #include "../src/syscall.hpp"
 #include "../src/insn.hpp"
+#include <Windows.h>
 #include <algorithm>
 #include <format>
 #include <array>
@@ -10,19 +11,10 @@ int main()
 {
     ac::init();
 
-    std::array<std::uint8_t, 4> bytes = { 0xc1, 0x00, 0x00, 0xD4 }; // little-endian
-    
-    const auto insn = ac::insn::svc::parse(bytes);
-    const auto new_insn = ac::insn::svc::encode(0x6);
+    LARGE_INTEGER time = { };
+    const auto status = ac::syscall<NTSTATUS>("ZwQuerySystemTime", &time);
 
-    const auto new_bytes = new_insn.to_bytes();
-
-    if (std::ranges::equal(bytes, new_bytes))
-    {
-        LOG("bytes are eq");
-    }
-
-	LOG("armcall 0x{:X}", insn ? insn->imm() : 0);
+	LOG("armcall status 0x{:X}, time: 0x{:X}", status, time.QuadPart);
 
 	return 0;
 }
