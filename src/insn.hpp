@@ -11,7 +11,7 @@ namespace ac::insn
 
         [[nodiscard]] array_t<std::uint8_t, len> to_bytes() const noexcept
         {
-            std::array<std::uint8_t, len> bytes{};
+            array_t<std::uint8_t, len> bytes{};
             ac::memcpy(bytes.data(), this, len);
 
             return bytes;
@@ -60,7 +60,7 @@ namespace ac::insn
 
         [[nodiscard]] static optional_t<svc> parse(const std::uint8_t* const bytes) noexcept
         {
-            return parse(span_t(bytes, len));
+            return parse(span_t<const std::uint8_t>{ bytes, len });
         }
 
         [[nodiscard]] static optional_t<svc> parse(const span_t<const uint8_t> bytes) noexcept
