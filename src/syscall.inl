@@ -86,7 +86,8 @@ namespace ac::detail
 		LIST_ENTRY InMemoryOrderLinks;
 		PVOID Reserved2[2];
 		PVOID DllBase;
-		PVOID Reserved3[2];
+		PVOID EntryPoint;
+		ULONG SizeOfImage;
 		UNICODE_STRING FullDllName;
 		BYTE Reserved4[8];
 		PVOID Reserved5[3];
@@ -94,10 +95,10 @@ namespace ac::detail
 		ULONG TimeDateStamp;
 	};
 
-	inline unordered_map_t<string_view_t, cached_syscall> syscalls;
+	inline unordered_map_t<std::size_t, cached_syscall> syscalls;
 	inline volatile LONG init_state = 0;
 
-	[[nodiscard]] inline void* find_ntdll() noexcept
+	[[nodiscard]] inline ldr_data_table_entry* find_ntdll() noexcept
 	{
 		const PTEB teb = NtCurrentTeb();
 		const PPEB peb = teb->ProcessEnvironmentBlock;
@@ -105,14 +106,71 @@ namespace ac::detail
 
 		const auto app_link = ldr->InLoadOrderModuleList.Flink;
 		const auto ntdll_link = app_link->Flink;
-		const auto ntdll_entry = CONTAINING_RECORD(ntdll_link, ldr_data_table_entry, InLoadOrderLinks);
 
-		return ntdll_entry->DllBase;
+		return CONTAINING_RECORD(ntdll_link, ldr_data_table_entry, InLoadOrderLinks);
+	}
+
+	inline vector_t<std::uint8_t> read_file(const wchar_t* const path)
+	{
+		const HANDLE handle = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	
+		if (handle == INVALID_HANDLE_VALUE)
+		{
+			return { };
+		}
+
+		const DWORD size = GetFileSize(handle, nullptr);
+
+		vector_t<std::uint8_t> buffer(size);
+
+		ReadFile(handle, buffer.data(), size, nullptr, nullptr);
+
+		CloseHandle(handle);
+
+		return buffer;
+	}
+
+	inline vector_t<std::uint8_t> pe_raw_to_virt(const pe::image* raw)
+	{
+		vector_t<std::uint8_t> virt_buf(raw->size());
+
+		ac::memcpy(virt_buf.data(), raw->as(), raw->nt_hdrs()->optional_hdr.size_of_headers);
+
+		for (const auto sec : raw->sections())
+		{
+			const auto dest = virt_buf.data() + sec.virtual_address;
+			const auto src = raw->as() + sec.pointer_to_raw_data;
+
+			ac::memcpy(dest, src, sec.size_of_raw_data);
+		}
+
+		return virt_buf;
+	}
+
+	inline vector_t<std::uint8_t> read_virt_pe(const wchar_t* const path)
+	{
+		const auto raw_buf = read_file(path);
+
+		return pe_raw_to_virt(reinterpret_cast<const pe::image*>(raw_buf.data()));
+	}
+
+	inline vector_t<std::uint8_t> read_virt_pe(const UNICODE_STRING& path)
+	{
+		const auto count = path.Length / sizeof(wchar_t);
+		wchar_t buf[MAX_PATH];
+
+		ac::memcpy(buf, path.Buffer, count * sizeof(wchar_t));
+		buf[count] = L'\0';
+
+		return read_virt_pe(buf);
 	}
 
 	inline void populate_syscalls()
 	{
-		const auto ntdll = static_cast<const pe::image*>(find_ntdll());
+		const auto ntdll_entry = find_ntdll();
+		const auto ntdll_buf = read_virt_pe(ntdll_entry->FullDllName);
+
+		const auto ntdll = reinterpret_cast<const pe::image*>(ntdll_buf.data());
 
 		for (const auto exp : ntdll->exports())
 		{
@@ -125,7 +183,9 @@ namespace ac::detail
 			if (!svc)
 				continue;
 
-			syscalls[exp.name] = svc.value();
+			const std::size_t hash = hash_t<string_view_t>{}(exp.name);
+
+			syscalls[hash] = svc.value();
 		}
 	}
 
@@ -147,7 +207,8 @@ inline void* ac::stub_of(const string_view_t syscall)
 {
 	detail::ensure_init();
 
-	const auto it = detail::syscalls.find(syscall);
+	const std::size_t hash = hash_t<string_view_t>{}(syscall);
+	const auto it = detail::syscalls.find(hash);
 
 	if (it == detail::syscalls.end())
 	{

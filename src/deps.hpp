@@ -9,12 +9,16 @@
 #	include <cstring>
 #	include <optional>
 #	include <span>
+#	include <string>
 #	include <string_view>
 #	include <type_traits>
 #	include <unordered_map>
 
 namespace ac
 {
+	template <class T>
+	using vector_t = std::vector<T>;
+
 	template <class T>
 	using span_t = std::span<T>;
 
@@ -25,6 +29,9 @@ namespace ac
 	using optional_t = std::optional<T>;
 
 	using string_view_t = std::string_view;
+
+	template <class T>
+	using hash_t = std::hash<T>;
 
 	template <class K, class V>
 	using unordered_map_t = std::unordered_map<K, V>;
