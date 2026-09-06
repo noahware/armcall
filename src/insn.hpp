@@ -34,11 +34,11 @@ namespace ac::insn
 	            opc(exp_opc),
 	            fixed(exp_fixed) { }
 
-        std::uint32_t ll : 2;   // bits [1:0]  - LL, distinguishes SVC/HVC/SMC
-        std::uint32_t opc2 : 3;   // bits [4:2]  - opc2, always 0 for this class
-        std::uint32_t imm16 : 16;  // bits [20:5] - the immediate (your 0x148)
-        std::uint32_t opc : 3;   // bits [23:21] - 000 = SVC, 001 = HVC, 010 = SMC
-        std::uint32_t fixed : 8;   // bits [31:24] - always 0xD4 for exception-gen class
+        std::uint32_t ll : 2;
+        std::uint32_t opc2 : 3;
+        std::uint32_t imm16 : 16;
+        std::uint32_t opc : 3;
+        std::uint32_t fixed : 8;
 
         [[nodiscard]] bool valid() const noexcept
         {
