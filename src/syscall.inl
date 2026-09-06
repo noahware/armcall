@@ -177,7 +177,7 @@ namespace ac::detail
 			if (exp.is_ordinal)
 				continue;
 
-			const auto loc = exp.loc.addr<const std::uint8_t*>();
+			const auto loc = exp.loc.template addr<const std::uint8_t*>();
 			const auto svc = insn::svc::parse(loc);
 
 			if (!svc)
