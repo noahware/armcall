@@ -1,6 +1,6 @@
 # armcall
 
-Direct syscall library for ARM64 Windows. This builds stubs that directly syscall to the Windows kernel. This avoids having to call through imported DLLs which could be hooked or monitored. C++ standard library usage is abstracted in deps.hpp so it can be switched out with a custom implementation. The library is header-only and requires at least C++ version 20.
+Direct syscall library for ARM64 Windows. This builds stubs that directly syscall to the Windows kernel. It does such by extracting the immediate operand of the `svc` instruction in every ntdll exported function and dynamically allocating a stub which does `svc #imm; ret;`. This avoids having to call through imported DLLs which could be hooked or monitored. C++ standard library usage is abstracted in deps.hpp so it can be switched out with a custom implementation. The library is header-only and requires at least C++ version 20.
 
 # Building tests
 
