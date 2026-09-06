@@ -48,8 +48,6 @@ static void test_mem()
 
 int main()
 {
-    AC_INIT();
-
     test_time();
     test_mem();
 

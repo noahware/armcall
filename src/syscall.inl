@@ -94,6 +94,9 @@ namespace ac::detail
 		ULONG TimeDateStamp;
 	};
 
+	inline unordered_map_t<string_view_t, cached_syscall> syscalls;
+	inline volatile LONG init_state = 0;
+
 	[[nodiscard]] inline void* find_ntdll() noexcept
 	{
 		const PTEB teb = NtCurrentTeb();
@@ -107,34 +110,43 @@ namespace ac::detail
 		return ntdll_entry->DllBase;
 	}
 
-	// inline, not an anonymous namespace: every TU including syscall.hpp must
-	// share one map, or init() would populate a different one than stub_of() reads
-	inline unordered_map_t<string_view_t, cached_syscall> syscalls;
-}
-
-inline void ac::init()
-{
-	const auto ntdll = static_cast<const pe::image*>(detail::find_ntdll());
-
-	for (const auto exp : ntdll->exports())
+	inline void populate_syscalls()
 	{
-		if (exp.is_ordinal)
-			continue;
+		const auto ntdll = static_cast<const pe::image*>(find_ntdll());
 
-		// todo: keep only if in exec section
+		for (const auto exp : ntdll->exports())
+		{
+			if (exp.is_ordinal)
+				continue;
 
-		const auto loc = exp.loc.addr<const std::uint8_t*>();
-		const auto svc = insn::svc::parse(loc);
+			const auto loc = exp.loc.addr<const std::uint8_t*>();
+			const auto svc = insn::svc::parse(loc);
 
-		if (!svc)
-			continue;
+			if (!svc)
+				continue;
 
-		detail::syscalls[exp.name] = svc.value();
+			syscalls[exp.name] = svc.value();
+		}
+	}
+
+	inline void ensure_init()
+	{
+		if (InterlockedCompareExchange(&init_state, 1, 0) == 0)
+		{
+			populate_syscalls();
+			InterlockedExchange(&init_state, 2);
+			return;
+		}
+
+		while (init_state != 2)
+			;
 	}
 }
 
 inline void* ac::stub_of(const string_view_t syscall)
 {
+	detail::ensure_init();
+
 	const auto it = detail::syscalls.find(syscall);
 
 	if (it == detail::syscalls.end())
