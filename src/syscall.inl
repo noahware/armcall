@@ -3,6 +3,7 @@
 
 #include <pe.hpp>
 #include <Windows.h>
+#include <winternl.h>
 
 namespace ac::detail
 {
@@ -71,6 +72,41 @@ namespace ac::detail
 		void* stub_ = nullptr;
 	};
 
+	struct peb_ldr_data
+	{
+		BYTE Reserved1[8];
+		PVOID Reserved2[1];
+		LIST_ENTRY InLoadOrderModuleList;
+		LIST_ENTRY InMemoryOrderModuleList;
+	};
+
+	struct ldr_data_table_entry
+	{
+		LIST_ENTRY InLoadOrderLinks;
+		LIST_ENTRY InMemoryOrderLinks;
+		PVOID Reserved2[2];
+		PVOID DllBase;
+		PVOID Reserved3[2];
+		UNICODE_STRING FullDllName;
+		BYTE Reserved4[8];
+		PVOID Reserved5[3];
+		PVOID Reserved6;
+		ULONG TimeDateStamp;
+	};
+
+	[[nodiscard]] inline void* find_ntdll() noexcept
+	{
+		const PTEB teb = NtCurrentTeb();
+		const PPEB peb = teb->ProcessEnvironmentBlock;
+		const auto ldr = reinterpret_cast<const peb_ldr_data*>(peb->Ldr);
+
+		const auto app_link = ldr->InLoadOrderModuleList.Flink;
+		const auto ntdll_link = app_link->Flink;
+		const auto ntdll_entry = CONTAINING_RECORD(ntdll_link, ldr_data_table_entry, InLoadOrderLinks);
+
+		return ntdll_entry->DllBase;
+	}
+
 	// inline, not an anonymous namespace: every TU including syscall.hpp must
 	// share one map, or init() would populate a different one than stub_of() reads
 	inline unordered_map_t<string_view_t, cached_syscall> syscalls;
@@ -78,7 +114,7 @@ namespace ac::detail
 
 inline void ac::init()
 {
-	const auto ntdll = reinterpret_cast<const pe::image*>(GetModuleHandleA("ntdll.dll"));
+	const auto ntdll = static_cast<const pe::image*>(detail::find_ntdll());
 
 	for (const auto exp : ntdll->exports())
 	{

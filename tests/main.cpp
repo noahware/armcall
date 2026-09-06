@@ -1,9 +1,6 @@
 #include "../src/syscall.hpp"
-#include "../src/insn.hpp"
 #include <Windows.h>
-#include <algorithm>
 #include <format>
-#include <array>
 #include <cstdio>
 
 #define LOG(...) std::printf("%s\n", std::format(__VA_ARGS__).c_str())
