@@ -7,69 +7,139 @@
 
 namespace ac::detail
 {
-	class cached_syscall
+	class stub_allocator
 	{
 	public:
 		constexpr static std::size_t stub_size = insn::base::len * 2;
+		constexpr static std::size_t page_size = 0x1000;
+		constexpr static std::size_t page_mask = page_size - 1;
+		constexpr static std::size_t usable_size = page_size - sizeof(void*);
+
+		~stub_allocator()
+		{
+			if (curr_stub_)
+			{
+				auto page = curr_stub_ & ~page_mask;
+
+				while (page)
+				{
+					const auto prev = *reinterpret_cast<std::uintptr_t*>(page + usable_size);
+					VirtualFree(reinterpret_cast<void*>(page), 0, MEM_RELEASE);
+					page = prev;
+				}
+
+				curr_stub_ = 0;
+			}
+		}
+
+		[[nodiscard]] mutex_t& mutex() noexcept
+		{
+			return mutex_;
+		}
+
+		[[nodiscard]] void* next() noexcept
+		{
+			if (needs_page())
+			{
+				allocate_page();
+			}
+
+			if (!curr_stub_)
+			{
+				return nullptr;
+			}
+
+			const auto stub = reinterpret_cast<void*>(curr_stub_);
+
+			curr_stub_ += stub_size;
+
+			return stub;
+		}
+
+	protected:
+		void allocate_page() noexcept
+		{
+			const auto prev = curr_stub_ & ~page_mask;
+			const auto page = reinterpret_cast<std::uintptr_t>(VirtualAlloc(nullptr, page_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE));
+
+			if (!page)
+			{
+				return;
+			}
+
+			if (prev)
+			{
+				*reinterpret_cast<std::uintptr_t*>(page + usable_size) = prev;
+			}
+
+			curr_stub_ = page;
+		}
+
+		[[nodiscard]] bool needs_page() const noexcept
+		{
+			return curr_stub_ == 0 || usable_size <= page_off();
+		}
+
+		[[nodiscard]] std::size_t page_off() const noexcept
+		{
+			return curr_stub_ & page_mask;
+		}
+
+		mutex_t mutex_ = { };
+		std::uintptr_t curr_stub_ = 0;
+	};
+
+	class cached_syscall
+	{
+	public:
+		static stub_allocator stub_alloc;
 
 		cached_syscall() noexcept = default;
 
 		cached_syscall(const insn::svc svc) noexcept
 			:	svc_(svc) { }
 
-		~cached_syscall()
+		cached_syscall& operator=(cached_syscall&& other) noexcept
 		{
-			if (stub_)
-			{
-				free_stub();
-				stub_ = nullptr;
-			}
+			svc_ = other.svc_;
+			stub_.store(other.stub_.load(memory_order_relaxed), memory_order_relaxed);
+			return *this;
 		}
 
 		[[nodiscard]] void* create_or_get_stub() noexcept
 		{
-			if (stub_)
+			if (stub_.load(memory_order_acquire))
 			{
-				return stub_;
+				return stub_.load(memory_order_relaxed);
 			}
 
-			alloc_stub();
-			
-			return stub_;
-		}
+			const scoped_lock_t lock(stub_alloc.mutex());
 
-	protected:
-		void alloc_stub()
-		{
-			stub_ = VirtualAlloc(nullptr, stub_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-
-			if (!stub_)
+			if (stub_.load(memory_order_relaxed))
 			{
-				return;
+				return stub_.load(memory_order_relaxed);
+			}
+
+			void* new_stub = stub_alloc.next();
+
+			if (!new_stub)
+			{
+				return nullptr;
 			}
 
 			const auto ret = insn::ret::encode();
-			const auto stub_ret = static_cast<std::uint8_t*>(stub_) + sizeof(svc_);
 
-			ac::memcpy(stub_, &svc_, sizeof(svc_));
-			ac::memcpy(stub_ret, &ret, sizeof(ret));
+			ac::memcpy(new_stub, &svc_, sizeof(svc_));
+			ac::memcpy(static_cast<std::uint8_t*>(new_stub) + sizeof(svc_), &ret, sizeof(ret));
 
-			DWORD old_prot = 0;
-			VirtualProtect(stub_, stub_size, PAGE_EXECUTE_READ, &old_prot);
+			stub_.store(new_stub, memory_order_release);
+
+			return new_stub;
 		}
 
-		void free_stub()
-		{
-			if (!stub_)
-			{
-				return;
-			}
-
-			VirtualFree(stub_, 0, MEM_RELEASE);
-		}
-
+	protected:
 		insn::svc svc_ = { };
-		void* stub_ = nullptr;
+		atomic_t<void*> stub_ = nullptr;
 	};
 
 	struct peb_ldr_data
@@ -95,6 +165,7 @@ namespace ac::detail
 		ULONG TimeDateStamp;
 	};
 
+	inline stub_allocator cached_syscall::stub_alloc;
 	inline unordered_map_t<std::size_t, cached_syscall> syscalls;
 	inline volatile LONG init_state = 0;
 
